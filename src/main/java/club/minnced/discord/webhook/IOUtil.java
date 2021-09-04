@@ -22,8 +22,8 @@ import okhttp3.ResponseBody;
 import okio.BufferedSink;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.json.JSONObject;
-import org.json.JSONTokener;
+import club.minnced.discord.webhook.jsone.JSONObject;
+import club.minnced.discord.webhook.jsone.JSONTokener;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -99,15 +99,15 @@ public class IOUtil { //TODO: test json
     }
 
     /**
-     * Converts an {@link java.io.InputStream} to a {@link org.json.JSONObject}
+     * Converts an {@link java.io.InputStream} to a {@link club.minnced.discord.webhook.jsone.JSONObject}
      *
      * @param  input
      *         The {@link java.io.InputStream}
      *
-     * @throws org.json.JSONException
+     * @throws club.minnced.discord.webhook.jsone.JSONException
      *         If parsing fails
      *
-     * @return {@link org.json.JSONObject} for the provided input
+     * @return {@link club.minnced.discord.webhook.jsone.JSONObject} for the provided input
      */
     @NotNull
     public static JSONObject toJSON(@NotNull InputStream input) {

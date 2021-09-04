@@ -17,9 +17,9 @@
 package club.minnced.discord.webhook.send;
 
 import org.jetbrains.annotations.NotNull;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.json.JSONString;
+import club.minnced.discord.webhook.jsone.JSONArray;
+import club.minnced.discord.webhook.jsone.JSONObject;
+import club.minnced.discord.webhook.jsone.JSONString;
 
 import java.util.Collection;
 import java.util.Collections;

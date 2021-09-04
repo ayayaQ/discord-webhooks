@@ -19,8 +19,8 @@ package club.minnced.discord.webhook.receive;
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import club.minnced.discord.webhook.jsone.JSONArray;
+import club.minnced.discord.webhook.jsone.JSONObject;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;

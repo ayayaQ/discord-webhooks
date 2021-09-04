@@ -17,9 +17,9 @@
 package club.minnced.discord.webhook.receive;
 
 import org.jetbrains.annotations.NotNull;
-import org.json.JSONObject;
-import org.json.JSONPropertyName;
-import org.json.JSONString;
+import club.minnced.discord.webhook.jsone.JSONObject;
+import club.minnced.discord.webhook.jsone.JSONPropertyName;
+import club.minnced.discord.webhook.jsone.JSONString;
 
 /**
  * Readonly message attachment meta-data.

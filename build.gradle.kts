@@ -49,7 +49,6 @@ val powermockVersion = "2.0.7"
 dependencies {
     api("org.slf4j:slf4j-api:1.7.25")
     api("com.squareup.okhttp3:okhttp:3.14.9")
-    api("org.json:json:20180813")
     implementation("org.jetbrains:annotations:16.0.1")
     
     compileOnly("net.dv8tion:JDA:4.2.0_196")
@@ -138,8 +137,8 @@ bintrayUpload.apply {
     onlyIf { getProjectProperty("bintrayApiKey") != null }
 }
 
-val bintrayPublish: BintrayPublishTask by tasks
-bintrayPublish.dependsOn(bintrayUpload)
+//val bintrayPublish: BintrayPublishTask by tasks
+//bintrayPublish.dependsOn(bintrayUpload)
 
 val compileJava: JavaCompile by tasks
 compileJava.options.isIncremental = true

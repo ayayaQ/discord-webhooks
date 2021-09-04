@@ -18,10 +18,10 @@ package club.minnced.discord.webhook.send;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.json.JSONObject;
-import org.json.JSONPropertyIgnore;
-import org.json.JSONPropertyName;
-import org.json.JSONString;
+import club.minnced.discord.webhook.jsone.JSONObject;
+import club.minnced.discord.webhook.jsone.JSONPropertyIgnore;
+import club.minnced.discord.webhook.jsone.JSONPropertyName;
+import club.minnced.discord.webhook.jsone.JSONString;
 
 import java.time.OffsetDateTime;
 import java.util.Collections;

@@ -22,8 +22,8 @@ import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import club.minnced.discord.webhook.jsone.JSONArray;
+import club.minnced.discord.webhook.jsone.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
