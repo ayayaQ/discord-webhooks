@@ -10,28 +10,6 @@
   <groupId>club.minnced</groupId>
   <artifactId>discord-webhooks</artifactId>
   <version>0.8.0</version>
-  <name>discord-webhooks</name>
-  <description>Provides easy to use bindings for the Discord Webhook API</description>
-  <url>https://github.com/MinnDevelopment/discord-webhooks</url>
-  <licenses>
-    <license>
-      <name>The Apache Software License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-  <developers>
-    <developer>
-      <id>Minn</id>
-      <name>Florian Spieß</name>
-      <email>business@minnced.club</email>
-    </developer>
-  </developers>
-  <scm>
-    <connection>scm:git:git://github.com/MinnDevelopment/discord-webhooks</connection>
-    <developerConnection>scm:git:ssh:git@github.com:MinnDevelopment/discord-webhooks</developerConnection>
-    <url>https://github.com/MinnDevelopment/discord-webhooks</url>
-  </scm>
   <dependencies>
     <dependency>
       <groupId>org.slf4j</groupId>
