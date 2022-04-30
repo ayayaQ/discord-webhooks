@@ -1,91 +1,80 @@
-import com.jfrog.bintray.gradle.BintrayExtension
-import com.jfrog.bintray.gradle.tasks.BintrayPublishTask
-import com.jfrog.bintray.gradle.tasks.BintrayUploadTask
 import org.apache.tools.ant.filters.ReplaceTokens
-
-/*
- * Copyright 2018-2019 Florian Spieß
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+import java.io.ByteArrayOutputStream
+import java.time.Duration
 
 plugins {
     `java-library`
     `maven-publish`
-    id("com.jfrog.bintray") version "1.8.5"
-    id("com.github.johnrengelman.shadow") version "6.0.0"
+    signing
+
+    //id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
 }
 
 val major = "0"
-val minor = "4"
-val patch = "1"
+val minor = "8"
+val patch = "0"
 
 group = "club.minnced"
 version = "$major.$minor.$patch"
+
+fun getCommit()
+    =  System.getenv("GITHUB_SHA")
+    ?: System.getenv("GIT_COMMIT")
+    ?: try {
+        val out = ByteArrayOutputStream()
+        exec {
+            commandLine("git rev-parse --verify --short HEAD".split(" "))
+            standardOutput = out
+            workingDir = projectDir
+        }
+        out.toString("UTF-8").trim()
+    } catch (ignored: Throwable) { "N/A" }
 
 val tokens = mapOf(
     "MAJOR" to major,
     "MINOR" to minor,
     "PATCH" to patch,
-    "VERSION" to version
+    "VERSION" to version,
+    "COMMIT" to getCommit()
 )
 
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
-val powermockVersion = "2.0.7"
+val versions = mapOf(
+    "slf4j" to "1.7.32",
+    "okhttp" to "3.14.9",
+    "json" to "20210307",
+    "jda" to "5.0.0-alpha.1",
+    "discord4j" to "3.2.1",
+    "javacord" to "3.3.2",
+    "junit" to "4.13.2",
+    "mockito" to "3.6.28", // must be compatible with powermock
+    "powermock" to "2.0.9",
+    "logback" to "1.2.3",
+    "annotations" to "22.0.0"
+)
 
 dependencies {
-    api("org.slf4j:slf4j-api:1.7.25")
-    api("com.squareup.okhttp3:okhttp:3.14.9")
-    implementation("org.jetbrains:annotations:16.0.1")
-    
-    compileOnly("net.dv8tion:JDA:4.2.0_196")
-    compileOnly("com.discord4j:discord4j-core:3.1.0")
-    compileOnly("org.javacord:javacord:3.0.6")
+    api("org.slf4j:slf4j-api:${versions["slf4j"]}")
+    api("com.squareup.okhttp3:okhttp:${versions["okhttp"]}")
+    api("org.json:json:${versions["json"]}")
+    implementation("org.jetbrains:annotations:${versions["annotations"]}")
 
-    testImplementation("junit:junit:4.12")
-    testImplementation("org.mockito:mockito-core:3.5.5")
-    testImplementation("org.powermock:powermock-module-junit4:$powermockVersion")
-    testImplementation("org.powermock:powermock-api-mockito2:$powermockVersion")
-    testImplementation("net.dv8tion:JDA:4.2.0_196")
-    testImplementation("com.discord4j:discord4j-core:3.1.0")
-    testImplementation("org.javacord:javacord:3.0.6")
-    //testCompile("ch.qos.logback:logback-classic:1.2.3")
+    compileOnly("net.dv8tion:JDA:${versions["jda"]}")
+    compileOnly("com.discord4j:discord4j-core:${versions["discord4j"]}")
+    compileOnly("org.javacord:javacord:${versions["javacord"]}")
+
+    testImplementation("junit:junit:${versions["junit"]}")
+    testImplementation("org.mockito:mockito-core:${versions["mockito"]}")
+    testImplementation("org.powermock:powermock-module-junit4:${versions["powermock"]}")
+    testImplementation("org.powermock:powermock-api-mockito2:${versions["powermock"]}")
+    testImplementation("net.dv8tion:JDA:${versions["jda"]}")
+    testImplementation("com.discord4j:discord4j-core:${versions["discord4j"]}")
+    testImplementation("org.javacord:javacord:${versions["javacord"]}")
+    //testCompile("ch.qos.logback:logback-classic:${versions["logback"]}")
 }
-
-fun org.gradle.api.publish.maven.MavenPom.addDependencies() = withXml {
-    asNode().appendNode("dependencies").let { depNode ->
-        configurations.api.dependencies.forEach {
-            depNode.appendNode("dependency").apply {
-                appendNode("groupId", it.group)
-                appendNode("artifactId", it.name)
-                appendNode("version", it.version)
-                appendNode("scope", "compile")
-            }
-        }
-        configurations.implementation.dependencies.forEach {
-            depNode.appendNode("dependency").apply {
-                appendNode("groupId", it.group)
-                appendNode("artifactId", it.name)
-                appendNode("version", it.version)
-                appendNode("scope", "runtime")
-            }
-        }
-    }
-}
-
 
 fun getProjectProperty(name: String) = project.properties[name] as? String
 
@@ -98,54 +87,61 @@ val sources = tasks.create("sources", Copy::class.java) {
     filter<ReplaceTokens>("tokens" to tokens)
 }
 
-javadoc.dependsOn(sources)
-javadoc.source = fileTree(sources.destinationDir)
-if (!System.getProperty("java.version").startsWith("1.8"))
-    (javadoc.options as CoreJavadocOptions).addBooleanOption("html5", true)
+javadoc.apply {
+    dependsOn(sources)
+    isFailOnError = false
+    source = fileTree(sources.destinationDir)
+    options.encoding = "UTF-8"
+    options.memberLevel = JavadocMemberLevel.PUBLIC
+
+    if (options is StandardJavadocDocletOptions) {
+        val opt = options as StandardJavadocDocletOptions
+
+        val extLinks = arrayOf(
+            "https://docs.oracle.com/en/java/javase/11/docs/api/",
+            "https://square.github.io/okhttp/3.x/okhttp/"
+        )
+        opt.links(*extLinks)
+        if (JavaVersion.current().isJava9Compatible)
+            opt.addBooleanOption("html5", true)
+        if (JavaVersion.current().isJava11Compatible)
+            opt.addBooleanOption("-no-module-directories", true)
+    }
+}
+
 
 val javadocJar = tasks.create("javadocJar", Jar::class.java) {
     dependsOn(javadoc)
     from(javadoc.destinationDir)
-    classifier = "javadoc"
+    archiveClassifier.set("javadoc")
 }
 
 val sourcesJar = tasks.create("sourcesJar", Jar::class.java) {
     dependsOn(sources)
     from(sources.destinationDir)
-    classifier = "sources"
+    archiveClassifier.set("sources")
 }
 
-publishing {
-    publications {
-        register("BintrayRelease", MavenPublication::class) {
-            from(components["java"])
-
-            artifactId = project.name
-            groupId = project.group as String
-            version = project.version as String
-
-            artifact(sourcesJar)
-            artifact(javadocJar)
-        }
+tasks.withType<JavaCompile> {
+    val arguments = mutableListOf("-Xlint:deprecation,unchecked,divzero,cast,static,varargs,try")
+    options.isIncremental = true
+    options.encoding = "UTF-8"
+    if (JavaVersion.current().isJava9Compatible) doFirst {
+        arguments += "--release"
+        arguments += "8"
+    }
+    doFirst {
+        options.compilerArgs = arguments
     }
 }
 
-
-val bintrayUpload: BintrayUploadTask by tasks
-bintrayUpload.apply {
-    onlyIf { getProjectProperty("bintrayUsername") != null }
-    onlyIf { getProjectProperty("bintrayApiKey") != null }
+val compileJava: JavaCompile by tasks
+compileJava.apply {
+    source = fileTree(sources.destinationDir)
+    dependsOn(sources)
 }
 
-//val bintrayPublish: BintrayPublishTask by tasks
-//bintrayPublish.dependsOn(bintrayUpload)
-
-val compileJava: JavaCompile by tasks
-compileJava.options.isIncremental = true
-compileJava.source = fileTree(sources.destinationDir)
-compileJava.dependsOn(sources)
-
-configure<JavaPluginConvention> {
+configure<JavaPluginExtension> {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 }
@@ -159,23 +155,114 @@ build.apply {
     dependsOn(test)
 }
 
-bintray {
-    user = getProjectProperty("bintrayUsername")
-    key = getProjectProperty("bintrayApiKey")
-    setPublications("BintrayRelease")
-    publish = true
+// Generate pom file for maven central
 
-    pkg(delegateClosureOf<BintrayExtension.PackageConfig> {
-        repo = "maven"
-        name = project.name
-        vcsUrl = "https://github.com/MinnDevelopment/discord-webhooks.git"
-        githubRepo = "MinnDevelopment/discord-webhooks"
-        setLicenses("Apache-2.0")
-        version(delegateClosureOf<BintrayExtension.VersionConfig> {
-            name = project.version as String
-            vcsTag = project.version as String
-            gpg.sign = true
-        })
-    })
+fun generatePom(): MavenPom.() -> Unit {
+    return {
+        packaging = "jar"
+        /*
+        name.set(project.name)
+        description.set("Provides easy to use bindings for the Discord Webhook API")
+        url.set("https://github.com/MinnDevelopment/discord-webhooks")
+        scm {
+            url.set("https://github.com/MinnDevelopment/discord-webhooks")
+            connection.set("scm:git:git://github.com/MinnDevelopment/discord-webhooks")
+            developerConnection.set("scm:git:ssh:git@github.com:MinnDevelopment/discord-webhooks")
+        }
+        licenses {
+            license {
+                name.set("The Apache Software License, Version 2.0")
+                url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("repo")
+            }
+        }
+        developers {
+            developer {
+                id.set("Minn")
+                name.set("Florian Spieß")
+                email.set("business@minnced.club")
+            }
+        }
+
+         */
+    }
 }
 
+
+// Publish
+
+publishing {
+    publications {
+        register("Release", MavenPublication::class) {
+            from(components["java"])
+
+            artifactId = project.name
+            groupId = project.group as String
+            version = project.version as String
+
+            artifact(sourcesJar)
+            artifact(javadocJar)
+
+            //pom.apply(generatePom())
+        }
+    }
+}
+
+
+// Staging and Promotion
+/*
+if ("signing.keyId" in properties) {
+    signing {
+        sign(publishing.publications["Release"])
+    }
+}
+
+ */
+/*
+nexusPublishing {
+    repositories.sonatype {
+        username.set(getProjectProperty("ossrhUser"))
+        password.set(getProjectProperty("ossrhPassword"))
+        stagingProfileId.set(getProjectProperty("stagingProfileId"))
+    }
+
+    // Sonatype is very slow :)
+    connectTimeout.set(Duration.ofMinutes(1))
+    clientTimeout.set(Duration.ofMinutes(10))
+
+    transitionCheckOptions {
+        maxRetries.set(100)
+        delayBetween.set(Duration.ofSeconds(5))
+    }
+}
+
+ */
+
+
+// To publish run ./gradlew release
+
+val rebuild = tasks.create("rebuild") {
+    val clean = tasks.getByName("clean")
+    dependsOn(build)
+    dependsOn(clean)
+    build.mustRunAfter(clean)
+}
+
+// Only enable publishing task for properly configured projects
+val publishingTasks = tasks.withType<PublishToMavenRepository> {
+    enabled = "ossrhUser" in properties
+    mustRunAfter(rebuild)
+    dependsOn(rebuild)
+}
+
+tasks.create("release") {
+    dependsOn(publishingTasks)
+    afterEvaluate {
+        // Collect all the publishing task which upload the archives to nexus staging
+        //val closeAndReleaseSonatypeStagingRepository: Task by tasks
+
+        // Make sure the close and release happens after uploading
+        //dependsOn(closeAndReleaseSonatypeStagingRepository)
+        //closeAndReleaseSonatypeStagingRepository.mustRunAfter(publishingTasks)
+    }
+}

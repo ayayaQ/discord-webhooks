@@ -18,6 +18,10 @@ package club.minnced.discord.webhook.receive;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+
+import java.util.Locale;
+
 import club.minnced.discord.webhook.jsone.JSONObject;
 import club.minnced.discord.webhook.jsone.JSONPropertyName;
 import club.minnced.discord.webhook.jsone.JSONString;
@@ -56,7 +60,7 @@ public class ReadonlyUser implements JSONString {
      * @return The discriminator
      */
     public String getDiscriminator() {
-        return String.format("%04d", discriminator);
+        return String.format(Locale.ROOT, "%04d", discriminator);
     }
 
     /**

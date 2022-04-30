@@ -16,12 +16,15 @@
 
 package root.send;
 
+import club.minnced.discord.webhook.LibraryInfo;
 import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.WebhookClientBuilder;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
-import okhttp3.*;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -43,16 +46,19 @@ public class IOMock {
 
     private WebhookClient client;
 
+    private AutoCloseable mocks;
+
     @Before
     public void init() {
-        MockitoAnnotations.initMocks(this);
+        mocks = MockitoAnnotations.openMocks(this);
         when(httpClient.newCall(any())).thenReturn(null);   //will make WebhookClient code throw NPE internally, which we don't care about
         client = new WebhookClientBuilder(1234, "token").setWait(false).setHttpClient(httpClient).build();
     }
 
     @After
-    public void cleanup() {
+    public void cleanup() throws Exception {
         client.close();
+        mocks.close();
     }
 
     @Test
@@ -62,7 +68,8 @@ public class IOMock {
         verify(httpClient, timeout(1000).only()).newCall(requestCaptor.capture());
         Request req = requestCaptor.getValue();
         Assert.assertEquals("POST", req.method());
-        Assert.assertEquals(String.format("https://discord.com/api/v7/webhooks/%d/%s?wait=false", 1234, "token"), req.url().toString());
+        String expectedUrl = String.format("https://discord.com/api/v%d/webhooks/%d/%s", LibraryInfo.DISCORD_API_VERSION, 1234, "token");
+        Assert.assertEquals(expectedUrl, req.url().toString());
     }
 
     @Test

@@ -16,11 +16,11 @@
 
 package club.minnced.discord.webhook.receive;
 
+import club.minnced.discord.webhook.jsone.JSONArray;
+import club.minnced.discord.webhook.jsone.JSONObject;
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import club.minnced.discord.webhook.jsone.JSONArray;
-import club.minnced.discord.webhook.jsone.JSONObject;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -173,8 +173,8 @@ public class EntityFactory {
     public static ReadonlyEmbed.EmbedProvider makeEmbedProvider(@Nullable JSONObject json) {
         if (json == null)
             return null;
-        final String url = json.getString("url");
-        final String name = json.getString("name");
+        final String url = json.optString("url", null);
+        final String name = json.optString("name", null);
         return new ReadonlyEmbed.EmbedProvider(name, url);
     }
 
@@ -249,6 +249,7 @@ public class EntityFactory {
         final String content = json.getString("content");
         final boolean tts = json.getBoolean("tts");
         final boolean mentionEveryone = json.getBoolean("mention_everyone");
+        final int flags = json.optInt("flags", 0);
         final JSONArray usersArray = json.getJSONArray("mentions");
         final JSONArray rolesArray = json.getJSONArray("mention_roles");
         final JSONArray embedArray = json.getJSONArray("embeds");
@@ -262,7 +263,7 @@ public class EntityFactory {
         }
         return new ReadonlyMessage(
                 id, channelId, mentionEveryone, tts,
-                author, content,
+                flags, author, content,
                 embeds, attachments,
                 mentionedUsers, mentionedRoles);
     }

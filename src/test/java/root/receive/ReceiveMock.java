@@ -57,16 +57,19 @@ public class ReceiveMock {
 
     private WebhookClient client;
 
+    private AutoCloseable mocks;
+
     @Before
     public void init() {
-        MockitoAnnotations.initMocks(this);
+        mocks = MockitoAnnotations.openMocks(this);
         PowerMockito.mockStatic(EntityFactory.class);
         client = new WebhookClientBuilder(1234, "token").setWait(true).setHttpClient(httpClient).build();
     }
 
     @After
-    public void cleanup() {
+    public void cleanup() throws Exception {
         client.close();
+        mocks.close();
     }
 
     @Test
@@ -106,7 +109,7 @@ public class ReceiveMock {
 
     private ReadonlyMessage setupFakeResponse(String json, boolean useGzip) {
         when(httpClient.newCall(any())).thenAnswer(invoc -> IOTestUtil.forgeCall(invoc.getArgument(0), json, useGzip));
-        ReadonlyMessage msg = new ReadonlyMessage(1, 2, false, false,
+        ReadonlyMessage msg = new ReadonlyMessage(1, 2, false, false, 0,
                 new ReadonlyUser(3, (short)4, false, "wh", null),
                 "content", Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList()
         );

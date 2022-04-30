@@ -17,12 +17,12 @@
 package club.minnced.discord.webhook;
 
 import club.minnced.discord.webhook.send.AllowedMentions;
+import club.minnced.discord.webhook.util.ThreadPools;
 import okhttp3.OkHttpClient;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Matcher;
@@ -43,6 +43,7 @@ public class WebhookClientBuilder { //TODO: tests
 
     protected final long id;
     protected final String token;
+    protected long threadId;
     protected ScheduledExecutorService pool;
     protected OkHttpClient client;
     protected ThreadFactory threadFactory;
@@ -111,43 +112,9 @@ public class WebhookClientBuilder { //TODO: tests
         return new WebhookClientBuilder(webhook.getIdLong(), Objects.requireNonNull(webhook.getToken(), "Webhook Token"));
     }
 
-    /**
-     * Creates a WebhookClientBuilder for the provided webhook.
-     *
-     * @param  webhook
-     *         The webhook
-     *
-     * @throws NullPointerException
-     *         If the webhook is null or does not provide a token
-     *
-     * @return The WebhookClientBuilder
-     */
-    @NotNull
-    public static WebhookClientBuilder fromD4J(@NotNull discord4j.core.object.entity.Webhook webhook) {
-        Objects.requireNonNull(webhook, "Webhook");
-        String token = webhook.getToken();
-        Objects.requireNonNull(token, "Webhook Token");
-        if (token.isEmpty())
-            throw new NullPointerException("Webhook Token");
-        return new WebhookClientBuilder(webhook.getId().asLong(), token);
-    }
 
-    /**
-     * Creates a WebhookClientBuilder for the provided webhook.
-     *
-     * @param  webhook
-     *         The webhook
-     *
-     * @throws NullPointerException
-     *         If the webhook is null or does not provide a token
-     *
-     * @return The WebhookClientBuilder
-     */
-    @NotNull
-    public static WebhookClientBuilder fromJavacord(@NotNull org.javacord.api.entity.webhook.Webhook webhook) {
-        Objects.requireNonNull(webhook, "Webhook");
-        return new WebhookClientBuilder(webhook.getId(), webhook.getToken().orElseThrow(NullPointerException::new));
-    }
+
+
 
 
     /**
@@ -246,6 +213,21 @@ public class WebhookClientBuilder { //TODO: tests
     }
 
     /**
+     * The ID for the thread you want the messages to be posted to.
+     * <br>You can use {@link WebhookClient#onThread(long)} to send specific messages to threads.
+     *
+     * @param  threadId
+     *         The target thread id, or 0 to not use threads
+     *
+     * @return The current builder, for chaining convenience
+     */
+    @NotNull
+    public WebhookClientBuilder setThreadId(long threadId) {
+        this.threadId = threadId;
+        return this;
+    }
+
+    /**
      * Builds the {@link club.minnced.discord.webhook.WebhookClient}
      * with the current settings
      *
@@ -254,28 +236,9 @@ public class WebhookClientBuilder { //TODO: tests
     @NotNull
     public WebhookClient build() {
         OkHttpClient client = this.client == null ? new OkHttpClient() : this.client;
-        ScheduledExecutorService pool = this.pool != null ? this.pool : getDefaultPool(id, threadFactory, isDaemon);
-        return new WebhookClient(id, token, parseMessage, client, pool, allowedMentions);
+        ScheduledExecutorService pool = this.pool != null ? this.pool : ThreadPools.getDefaultPool(id, threadFactory, isDaemon);
+        return new WebhookClient(id, token, parseMessage, client, pool, allowedMentions, threadId);
     }
 
-    protected static ScheduledExecutorService getDefaultPool(long id, ThreadFactory factory, boolean isDaemon) {
-        return Executors.newSingleThreadScheduledExecutor(factory == null ? new DefaultWebhookThreadFactory(id, isDaemon) : factory);
-    }
 
-    private static final class DefaultWebhookThreadFactory implements ThreadFactory {
-        private final long id;
-        private final boolean isDaemon;
-
-        public DefaultWebhookThreadFactory(long id, boolean isDaemon) {
-            this.id = id;
-            this.isDaemon = isDaemon;
-        }
-
-        @Override
-        public Thread newThread(Runnable r) {
-            final Thread thread = new Thread(r, "Webhook-RateLimit Thread WebhookID: " + id);
-            thread.setDaemon(isDaemon);
-            return thread;
-        }
-    }
 }

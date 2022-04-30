@@ -17,14 +17,15 @@
 package club.minnced.discord.webhook.send;
 
 import org.jetbrains.annotations.NotNull;
-import club.minnced.discord.webhook.jsone.JSONArray;
-import club.minnced.discord.webhook.jsone.JSONObject;
-import club.minnced.discord.webhook.jsone.JSONString;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+
+import club.minnced.discord.webhook.jsone.JSONArray;
+import club.minnced.discord.webhook.jsone.JSONObject;
+import club.minnced.discord.webhook.jsone.JSONString;
 
 /**
  * Constructs a whitelist of allowed mentions for a message.

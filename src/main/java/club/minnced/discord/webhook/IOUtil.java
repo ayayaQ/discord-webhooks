@@ -16,14 +16,14 @@
 
 package club.minnced.discord.webhook;
 
+import club.minnced.discord.webhook.jsone.JSONObject;
+import club.minnced.discord.webhook.jsone.JSONTokener;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import okhttp3.ResponseBody;
 import okio.BufferedSink;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import club.minnced.discord.webhook.jsone.JSONObject;
-import club.minnced.discord.webhook.jsone.JSONTokener;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -107,7 +107,7 @@ public class IOUtil { //TODO: test json
      * @throws club.minnced.discord.webhook.jsone.JSONException
      *         If parsing fails
      *
-     * @return {@link club.minnced.discord.webhook.jsone.JSONObject} for the provided input
+     * @return {@link JSONObject} for the provided input
      */
     @NotNull
     public static JSONObject toJSON(@NotNull InputStream input) {
@@ -184,10 +184,10 @@ public class IOUtil { //TODO: test json
      * Wrapper for an {@link #OCTET} request body
      */
     public static class OctetBody extends RequestBody {
-        private final InputStream in;
+        private final byte[] data;
 
-        public OctetBody(@NotNull InputStream in) {
-            this.in = in;
+        public OctetBody(@NotNull byte[] data) {
+            this.data = data;
         }
 
         @Override
@@ -197,7 +197,6 @@ public class IOUtil { //TODO: test json
 
         @Override
         public void writeTo(BufferedSink sink) throws IOException {
-            byte[] data = readAllBytes(in);
             sink.write(data);
         }
     }

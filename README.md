@@ -1,7 +1,10 @@
-[version]: https://api.bintray.com/packages/minndevelopment/maven/discord-webhooks/images/download.svg
-[download]: https://bintray.com/minndevelopment/maven/discord-webhooks/_latestVersion
+[version]: https://img.shields.io/maven-central/v/club.minnced/discord-webhooks
+[download]: https://mvnrepository.com/artifact/club.minnced/discord-webhooks/latest
 [license]: https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg
 [license-file]: https://github.com/MinnDevelopment/discord-webhooks/blob/master/LICENSE
+
+[WebhookClient#setErrorHandler]: https://minndevelopment.github.io/discord-webhooks/club/minnced/discord/webhook/WebhookClient.html#setErrorHandler(club.minnced.discord.webhook.util.WebhookErrorHandler)
+[WebhookClient#setDefaultErrorHandler]: https://minndevelopment.github.io/discord-webhooks/club/minnced/discord/webhook/WebhookClient.html#setDefaultErrorHandler(club.minnced.discord.webhook.util.WebhookErrorHandler)
 
 [ ![version] ][download]
 [ ![license] ][license-file]
@@ -14,6 +17,8 @@ Discord Webhook API.
 # Introduction
 
 Here we will give a small overview of the proper usage and applicability of the resources provided by this library.
+
+Documentation is available via the GitHub pages on this repository: [Javadoc](https://minndevelopment.github.io/discord-webhooks/overview-tree.html)
 
 ## Limitations
 
@@ -40,7 +45,7 @@ WebhookClient client = builder.build();
 
 ```java
 // Using the factory methods
-WebhookClient client = WebhookClient.fromUrl(url); // or fromId(id, token)
+WebhookClient client = WebhookClient.withUrl(url); // or withId(id, token)
 ```
 
 ### Creating a WebhookCluster
@@ -83,6 +88,46 @@ builder.setContent("Hello World");
 client.send(builder.build());
 ```
 
+## Threads
+
+You can use the webhook clients provided by this library to send messages in threads. There are two ways to accomplish this.
+
+Set a thread id in the client builder to send all messages in that client to the thread:
+
+```java
+WebhookClient client = new WebhookClientBuilder(url)
+        .setThreadId(threadId)
+        .build();
+
+client.send("Hello"); // appears in the thread
+```
+
+Use `onThread` to create a client with a thread id and all other settings inherited:
+
+```java
+try (WebhookClient client = WebhookClient.withUrl(url)) {
+    WebhookClient thread = client.onThread(123L);
+    thread.send("Hello"); // appears only in the thread with id 123
+    client.send("Friend"); // appears in the channel instead
+} // calls client.close() which automatically also closes all onThread clients as well.
+```
+
+All `WebhookClient` instances created with `onThread` will share the same thread pool used by the original client. This means that shutting down or closing any of the clients will also close all other clients associated with that underlying thread pool.
+
+```java
+WebhookClient thread = null;
+try (WebhookClient client = WebhookClient.withUrl(url)) {
+    thread = client.onThread(id);
+} // closes client
+thread.send("Hello"); // <- throws rejected execution due to pool being shutdown by client.close() above ^
+
+WebhookClient client = WebhookClient.withUrl(url);
+try (WebhookClient thread = client.onThread(id)) {
+    thread.send("...");
+} // closes thread
+client.send("Hello");  // <- throws rejected execution due to pool being shutdown by thread.close() above ^
+```
+
 ### Shutdown
 
 Since the clients use threads for sending messages you should close the client to end the threads. This can be ignored if a shared thread-pool is used between multiple clients but that pool has to be shutdown by the user accordingly.
@@ -95,7 +140,61 @@ try (WebhookClient client = WebhookClient.withUrl(url)) {
 webhookCluster.close(); // closes each client and can be used again
 ```
 
+## Error Handling
+
+By default, this library will log every exception encountered when sending a message using the SLF4J logger implementation.
+This can be configured using [WebhookClient#setErrorHandler] to custom behavior per client or [WebhookClient#setDefaultErrorHandler] for all clients.
+
+### Example
+
+```java
+WebhookClient.setDefaultErrorHandler((client, message, throwable) -> {
+    System.err.printf("[%s] %s%n", client.getId(), message);
+    if (throwable != null)
+        throwable.printStackTrace();
+    // Shutdown the webhook client when you get 404 response (may also trigger for client#edit calls, be careful)
+    if (throwable instanceof HttpException ex && ex.getCode() == 404) {
+        client.close();
+    }
+});
+```
+
+## External Libraries
+
+This library also supports sending webhook messages with integration from other libraries such as
+
+- [JDA](/DV8FromTheWorld/JDA) (version 5.0.0-alpha.1) with [JDAWebhookClient](https://github.com/MinnDevelopment/discord-webhooks/blob/master/src/main/java/club/minnced/discord/webhook/external/JDAWebhookClient.java)
+- [Discord4J](Discord4J/Discord4J) (version 3.2.1) with [D4JWebhookClient](https://github.com/MinnDevelopment/discord-webhooks/blob/master/src/main/java/club/minnced/discord/webhook/external/D4JWebhookClient.java)
+- [Javacord](/Javacord/Javacord) (version 3.3.2) with [JavacordWebhookClient](https://github.com/MinnDevelopment/discord-webhooks/blob/master/src/main/java/club/minnced/discord/webhook/external/JavacordWebhookClient.java)
+
+### Example JDA
+
+```java
+public void sendWebhook(Webhook webhook) {
+    Message message = new MessageBuilder();
+    message.append("Hello World!");
+    try (JDAWebhookClient client = JDAWebhookClient.from(webhook)) { // create a client instance from the JDA webhook
+        client.send(message); // send a JDA message instance
+    }
+}
+```
+
+### Example Discord4J
+
+```java
+public void sendWebhook(Webhook webhook) {
+    try (D4JWebhookClient client = D4JWebhookClient.from(webhook)) {
+        client.send(MessageCreateSpec.create()
+            .withContent("Hello World")
+            .addFile("cat.png", new FileInputStream("cat.png"))
+        );
+    }
+}
+```
+
 # Download
+
+[ ![version] ][download]
 
 Note: Replace `%VERSION%` below with the desired version.
 
@@ -103,25 +202,17 @@ Note: Replace `%VERSION%` below with the desired version.
 
 ```gradle
 repositories {
-    jcenter()
+    mavenCentral()
 }
 ```
 
 ```gradle
 dependencies {
-    compile("club.minnced:discord-webhooks:%VERSION%")
+    implementation("club.minnced:discord-webhooks:%VERSION%")
 }
 ```
 
 ## Maven
-
-```xml
-<repository>
-    <name>jcenter</name>
-    <id>bintray-jcenter</id>
-    <url>https://jcenter.bintray.com</url>
-</repository>
-```
 
 ```xml
 <dependency>
@@ -133,7 +224,7 @@ dependencies {
 
 ## Compile Yourself
 
-1. Clone repostiory
+1. Clone repository
 1. Run `gradlew shadowJar`
 1. Use jar suffixed with `-all.jar` in `build/libs`
 

@@ -16,10 +16,13 @@
 
 package club.minnced.discord.webhook.send;
 
+import club.minnced.discord.webhook.MessageFlags;
 import discord4j.core.spec.MessageCreateSpec;
+import discord4j.core.spec.MessageEditSpec;
 import discord4j.discordjson.json.AllowedMentionsData;
 import discord4j.discordjson.json.EmbedData;
 import discord4j.discordjson.json.MessageCreateRequest;
+import discord4j.discordjson.json.MessageEditRequest;
 import discord4j.discordjson.possible.Possible;
 import discord4j.rest.util.MultipartRequest;
 import net.dv8tion.jda.api.entities.Message;
@@ -48,6 +51,7 @@ public class WebhookMessageBuilder {
     protected AllowedMentions allowedMentions = AllowedMentions.all();
     protected String username, avatarUrl;
     protected boolean isTTS;
+    protected int flags;
     private int fileIndex = 0;
 
     /**
@@ -271,6 +275,23 @@ public class WebhookMessageBuilder {
     }
 
     /**
+     * Whether the message should be ephemeral (only works for interaction webhooks).
+     *
+     * @param  ephemeral
+     *         True if the message should be ephemeral, false otherwise
+     *
+     * @return This builder for chaining convenience
+     */
+    @NotNull
+    public WebhookMessageBuilder setEphemeral(boolean ephemeral) {
+        if (ephemeral)
+            flags |= MessageFlags.EPHEMERAL;
+        else
+            flags &= ~MessageFlags.EPHEMERAL;
+        return this;
+    }
+
+    /**
      * Adds the provided file as an attachment to this message.
      * <br>A single message can have up to {@value WebhookMessage#MAX_FILES} attachments.
      *
@@ -388,142 +409,17 @@ public class WebhookMessageBuilder {
         if (isEmpty())
             throw new IllegalStateException("Cannot build an empty message!");
         return new WebhookMessage(username, avatarUrl, content.toString(), embeds, isTTS,
-                fileIndex == 0 ? null : Arrays.copyOf(files, fileIndex), allowedMentions);
+                fileIndex == 0 ? null : Arrays.copyOf(files, fileIndex), allowedMentions, flags);
     }
 
 
-    /////////////////////////////////
-    /// Third-party compatibility ///
-    /////////////////////////////////
 
-    /**
-     * Converts a JDA {@link Message} into a compatible WebhookMessageBuilder.
-     *
-     * @param  message
-     *         The message
-     *
-     * @throws NullPointerException
-     *         If null is provided
-     *
-     * @return WebhookMessageBuilder with the converted data
-     */
-    @NotNull
-    public static WebhookMessageBuilder fromJDA(@NotNull net.dv8tion.jda.api.entities.Message message) {
-        WebhookMessageBuilder builder = new WebhookMessageBuilder();
-        builder.setTTS(message.isTTS());
-        builder.setContent(message.getContentRaw());
-        message.getEmbeds().forEach(embed -> builder.addEmbeds(WebhookEmbedBuilder.fromJDA(embed).build()));
 
-        if (message instanceof DataMessage) {
-            DataMessage data = (DataMessage) message;
-            AllowedMentions allowedMentions = AllowedMentions.none();
-            EnumSet<Message.MentionType> parse = data.getAllowedMentions();
-            allowedMentions.withUsers(data.getMentionedUsersWhitelist());
-            allowedMentions.withRoles(data.getMentionedRolesWhitelist());
-            if (parse != null) {
-                allowedMentions.withParseUsers(parse.contains(Message.MentionType.USER));
-                allowedMentions.withParseRoles(parse.contains(Message.MentionType.ROLE));
-                allowedMentions.withParseEveryone(parse.contains(Message.MentionType.EVERYONE) || parse.contains(Message.MentionType.HERE));
-            }
-            builder.setAllowedMentions(allowedMentions);
-        } else if (message instanceof ReceivedMessage) {
-            AllowedMentions allowedMentions = AllowedMentions.none();
-            allowedMentions.withRoles(
-                message.getMentionedRoles().stream()
-                    .map(Role::getId)
-                    .collect(Collectors.toList()));
-            allowedMentions.withUsers(
-                message.getMentionedUsers().stream()
-                    .map(User::getId)
-                    .collect(Collectors.toList()));
-            allowedMentions.withParseEveryone(message.mentionsEveryone());
-            builder.setAllowedMentions(allowedMentions);
-        }
-        return builder;
-    }
 
-    /**
-     * Converts a Javacord {@link org.javacord.api.entity.message.Message Message} into a compatible WebhookMessageBuilder.
-     *
-     * @param  message
-     *         The message
-     *
-     * @throws NullPointerException
-     *         If null is provided
-     *
-     * @return WebhookMessageBuilder with the converted data
-     */
-    @NotNull
-    public static WebhookMessageBuilder fromJavacord(@NotNull org.javacord.api.entity.message.Message message) {
-        WebhookMessageBuilder builder = new WebhookMessageBuilder();
-        builder.setTTS(message.isTts());
-        builder.setContent(message.getContent());
-        message.getEmbeds().forEach(embed -> builder.addEmbeds(WebhookEmbedBuilder.fromJavacord(embed).build()));
 
-        AllowedMentions allowedMentions = AllowedMentions.none();
-        allowedMentions.withUsers(
-            message.getMentionedUsers().stream()
-                .map(DiscordEntity::getIdAsString)
-                .collect(Collectors.toList()));
-        allowedMentions.withRoles(
-            message.getMentionedRoles().stream()
-                .map(DiscordEntity::getIdAsString)
-                .collect(Collectors.toList()));
-        allowedMentions.withParseEveryone(message.mentionsEveryone());
-        builder.setAllowedMentions(allowedMentions);
-        return builder;
-    }
 
-    /**
-     * Converts a Discord4J {@link MessageCreateSpec} into a compatible WebhookMessageBuilder.
-     *
-     * @param  callback
-     *         The callback used to specify the desired message settings
-     *
-     * @throws NullPointerException
-     *         If null is provided
-     *
-     * @return WebhookMessageBuilder with the converted data
-     */
-    @NotNull
-    public static WebhookMessageBuilder fromD4J(@NotNull Consumer<? super MessageCreateSpec> callback) {
-        WebhookMessageBuilder builder = new WebhookMessageBuilder();
-        MessageCreateSpec spec = new MessageCreateSpec();
-        callback.accept(spec);
-        MultipartRequest data = spec.asRequest();
-        data.getFiles().forEach(tuple -> builder.addFile(tuple.getT1(), tuple.getT2()));
-        MessageCreateRequest parts = data.getCreateRequest();
-        if (parts == null)
-            return builder;
 
-        Possible<String> content = parts.content();
-        Possible<EmbedData> embed = parts.embed();
-        Possible<Boolean> tts = parts.tts();
-        Possible<AllowedMentionsData> allowedMentions = parts.allowedMentions();
 
-        if (!content.isAbsent())
-            builder.setContent(content.get());
-        if (!embed.isAbsent())
-            builder.addEmbeds(WebhookEmbedBuilder.fromD4J(embed.get()).build());
-        if (!tts.isAbsent())
-            builder.setTTS(tts.get());
 
-        if (!allowedMentions.isAbsent()) {
-            AllowedMentionsData mentions = allowedMentions.get();
-            AllowedMentions whitelist = AllowedMentions.none();
-            if (!mentions.users().isAbsent())
-                whitelist.withUsers(mentions.users().get());
-            if (!mentions.roles().isAbsent())
-                whitelist.withRoles(mentions.roles().get());
-            if (!mentions.parse().isAbsent()) {
-                List<String> parse = mentions.parse().get();
-                whitelist.withParseRoles(parse.contains("roles"));
-                whitelist.withParseEveryone(parse.contains("everyone"));
-                whitelist.withParseUsers(parse.contains("users"));
-            }
-            builder.setAllowedMentions(whitelist);
-        }
 
-        return builder;
-    }
 }

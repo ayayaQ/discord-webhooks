@@ -21,14 +21,18 @@ import club.minnced.discord.webhook.send.WebhookEmbed;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.internal.entities.DataMessage;
+import net.dv8tion.jda.internal.entities.ReceivedMessage;
 import okhttp3.RequestBody;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import root.IOTestUtil;
 
 import java.io.File;
@@ -40,9 +44,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
+
 public class MessageTest {
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
     private WebhookMessageBuilder builder;
 
     @Before
@@ -131,6 +137,55 @@ public class MessageTest {
         Assert.assertEquals("dog.png", message.getAttachments()[1].getName());
         Assert.assertEquals("bird.png", message.getAttachments()[2].getName());
     }
+    
+    @Test
+    public void buildMessageWithDataMessage() {
+        MessageEmbed jdaEmbed = new EmbedBuilder()
+              .setTitle("myEmbed")
+              .build();
+        
+        Message jdaMessage = new MessageBuilder()
+              .setTTS(true)
+              .setContent("myContent")
+              .setEmbeds(jdaEmbed)
+              .build();
+        
+        WebhookMessage webhookMessage = WebhookMessageBuilder.fromJDA(jdaMessage).build();
+        List<WebhookEmbed> webhookEmbeds = webhookMessage.getEmbeds();
+        
+        Assert.assertEquals(webhookEmbeds.size(), 1);
+        
+        WebhookEmbed webhookEmbed = webhookEmbeds.get(0);
+        
+        Assert.assertTrue(jdaMessage instanceof DataMessage);
+        Assert.assertTrue(webhookMessage.isTTS());
+        Assert.assertEquals(webhookMessage.getContent(), "myContent");
+        Assert.assertEquals(webhookEmbed.getTitle().getText(), "myEmbed");
+    }
+    
+    @Test
+    public void buildMessageWithReceivedMessage() {
+        MessageEmbed jdaEmbed = new EmbedBuilder()
+              .setTitle("myEmbed")
+              .build();
+    
+        Message jdaMessage = mock(ReceivedMessage.class, CALLS_REAL_METHODS);
+        when(jdaMessage.isTTS()).thenReturn(true);
+        when(jdaMessage.getContentRaw()).thenReturn("myContent");
+        when(jdaMessage.getEmbeds()).thenReturn(Arrays.asList(jdaEmbed));
+
+        WebhookMessage webhookMessage = WebhookMessageBuilder.fromJDA(jdaMessage).build();
+        List<WebhookEmbed> webhookEmbeds = webhookMessage.getEmbeds();
+        
+        Assert.assertEquals(webhookEmbeds.size(), 1);
+        
+        WebhookEmbed webhookEmbed = webhookEmbeds.get(0);
+        
+        Assert.assertTrue(jdaMessage instanceof ReceivedMessage);
+        Assert.assertTrue(webhookMessage.isTTS());
+        Assert.assertEquals(webhookMessage.getContent(), "myContent");
+        Assert.assertEquals(webhookEmbed.getTitle().getText(), "myEmbed");
+    }
 
     @Test
     public void factoryEmbeds() {
@@ -159,8 +214,7 @@ public class MessageTest {
 
     @Test
     public void buildEmptyMessage() {
-        expectedException.expect(IllegalStateException.class);
-        builder.build();
+        Assert.assertThrows(IllegalStateException.class, () -> builder.build());
     }
 
     @Test
@@ -178,6 +232,7 @@ public class MessageTest {
                 .put("tts", true)
                 .put("embeds", new JSONArray().put(new JSONObject().put("description", "embed")))
                 .put("allowed_mentions", allowedMentions)
+                .put("flags", 0)
                 .toMap();
 
         WebhookMessage msg = builder
@@ -197,22 +252,23 @@ public class MessageTest {
 
         Assert.assertEquals("Json output is incorrect", expected, provided);
 
-        //check if optional fields are omitted if not used (tts is always sent)
-        expected = new JSONObject()
-                .put("content", "...")
-                .put("tts", false)
-                .put("allowed_mentions", allowedMentions)
-                .toMap();
-
-        msg = builder
-                .reset()
-                .setContent("...")
-                .build();
-
-        bodyContent = IOTestUtil.readRequestBody(msg.getBody());
-        provided = new JSONObject(bodyContent).toMap();
-
-        Assert.assertEquals("Json output has additional fields", expected, provided);
+        // This is no longer expected behavior, we intentionally include optional fields due to the PATCH endpoint behavior
+//        //check if optional fields are omitted if not used (tts is always sent)
+//        expected = new JSONObject()
+//                .put("content", "...")
+//                .put("tts", false)
+//                .put("allowed_mentions", allowedMentions)
+//                .toMap();
+//
+//        msg = builder
+//                .reset()
+//                .setContent("...")
+//                .build();
+//
+//        bodyContent = IOTestUtil.readRequestBody(msg.getBody());
+//        provided = new JSONObject(bodyContent).toMap();
+//
+//        Assert.assertEquals("Json output has additional fields", expected, provided);
     }
 
     @Test
@@ -241,7 +297,10 @@ public class MessageTest {
                 new JSONObject()
                         .put("allowed_mentions", allowedMentions)
                         .put("content", "CONTENT!")
-                        .put("tts", false).toMap(),
+                        .put("embeds", new JSONArray())
+                        .put("tts", false)
+                        .put("flags", 0)
+                        .toMap(),
                 new JSONObject((String) multiPart.get("payload_json")).toMap()
         );
 
